@@ -26,7 +26,7 @@ func callFunction(f reflect.Value, args []reflect.Value) (r []reflect.Value, err
 func callFunctionSingleResult(f reflect.Value, args []reflect.Value) (r reflect.Value, err error) {
 	values, err := callFunction(f, args)
 	if err != nil {
-		return // reflect.Value{}, err
+		return
 	}
 	if len(values) != 1 {
 		return reflect.Value{}, errors.New("unable to call function: multiple or no result have been returned")

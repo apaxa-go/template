@@ -26,12 +26,15 @@ func parseTEString(s *string, t *Template) {
 	}
 }
 
-func (te teString) Execute(wr io.Writer, topData, parentData, data interface{}) error {
+func (te teString) execute(wr io.Writer) error {
 	_, err := wr.Write([]byte(te))
 	return err
 }
 
-//
-//func (te teString) Compile(data interface{}) (string, error) {
-//	return string(te), nil
-//}
+func (te teString) Execute(wr io.Writer, topData, parentData, data interface{}) error {
+	return te.execute(wr)
+}
+
+func (te teString) ExecuteFlat(wr io.Writer, data []interface{}, dataI *int) error {
+	return te.execute(wr)
+}

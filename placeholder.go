@@ -2,9 +2,12 @@ package template
 
 import (
 	"errors"
+	"github.com/apaxa-go/helper/strconvh"
 	"io"
 	"reflect"
 	"strings"
+
+
 )
 
 type Func interface {
@@ -65,9 +68,9 @@ func parsePlaceholder(s string, funcs map[string]interface{}) (p tePlaceholder, 
 		}
 		switch {
 		case str == "*":
-			p.funcs = append(p.funcs, FuncSimple{Dereference})
+			p.funcs = append(p.funcs, dereferencer{})
 		case str == "&":
-			p.funcs = append(p.funcs, FuncSimple{GetAddr})
+			p.funcs = append(p.funcs, addrGetter{})
 		case strings.HasPrefix(str, dot) && strings.HasSuffix(str, invoke): // Method
 			name := str[len(dot) : len(str)-len(invoke)]
 			if !IsValidExportedIdent(name) {
@@ -163,5 +166,18 @@ func (te tePlaceholder) Execute(wr io.Writer, topData, parentData, data interfac
 		return err
 	}
 	_, err = wr.Write([]byte(str))
+	return err
+}
+
+func (te tePlaceholder) ExecuteFlat(wr io.Writer, data []interface{}, dataI *int) error {
+	if *dataI >= len(data) {
+		return errors.New("not enough arguments")
+	}
+	str, ok := data[*dataI].(string)
+	*dataI++
+	if !ok {
+		return errors.New("unable to compile placeholder: result not a string (" + strconvh.FormatInt(*dataI) + ")")
+	}
+	_, err := wr.Write([]byte(str))
 	return err
 }

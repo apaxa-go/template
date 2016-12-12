@@ -2,6 +2,7 @@ package template
 
 import (
 	"errors"
+	"github.com/apaxa-go/helper/strconvh"
 	"io"
 	"strings"
 )
@@ -98,19 +99,38 @@ func (te teOptionalBlock) Execute(wr io.Writer, topData, parentData, data interf
 	return nil
 }
 
-//
-//func (te teOptionalBlock) Compile(data interface{}) (string, error) {
-//	for _, b := range te.ifs {
-//		do, err := b.condition.CompileBool(data)
-//		if err != nil {
-//			return "", err
-//		}
-//		if do {
-//			return b.template.Compile(data)
-//		}
-//	}
-//	if te.els != nil {
-//		return te.els.Compile(data)
-//	}
-//	return "", nil
-//}
+func (te teOptionalBlock) ExecuteFlat(wr io.Writer, data []interface{}, dataI *int) error {
+	done := false
+	for _, b := range te.ifs {
+		var do = false
+		if !done {
+			if *dataI >= len(data) {
+				return errors.New("not enough arguments")
+			}
+			var ok bool
+			do, ok = data[*dataI].(bool)
+			if !ok {
+				return errors.New("argument " + strconvh.FormatInt(*dataI) + " is not bool")
+			}
+		}
+		*dataI++
+		if do {
+			done = true
+			err := b.template.executeFlat(wr, data, dataI)
+			if err != nil {
+				return err
+			}
+		} else {
+			*dataI += b.template.NumArgs()
+		}
+	}
+
+	// else block
+	if te.els != nil {
+		if !done {
+			return te.els.executeFlat(wr, data, dataI)
+		}
+		*dataI += te.els.NumArgs()
+	}
+	return nil
+}

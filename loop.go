@@ -2,6 +2,7 @@ package template
 
 import (
 	"errors"
+	"github.com/apaxa-go/helper/strconvh"
 	"io"
 	"reflect"
 )
@@ -105,34 +106,41 @@ func (te teLoopBlock) Execute(wr io.Writer, topData, parentData, data interface{
 	return nil
 }
 
-//func (te teLoopBlock) Compile(data interface{}) (string, error) {
-//	var r string
-//
-//	do, err := te.v.CompileInterface(data)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	switch value := reflect.ValueOf(do); value.Kind() {
-//	case reflect.Int:
-//		for i := 0; i < int(value.Int()); i++ {
-//			str, err := te.template.Compile(nil)
-//			if err != nil {
-//				return "", err
-//			}
-//			r += str
-//		}
-//	case reflect.Slice:
-//		for i := 0; i < value.Len(); i++ {
-//			str, err := te.template.Compile(value.Index(i).Interface())
-//			if err != nil {
-//				return "", err
-//			}
-//			r += str
-//		}
-//	default:
-//		return "", errors.New("in loop block directive alowed only int and slice types, but got " + value.Kind().String())
-//	}
-//
-//	return r, nil
-//}
+func (te teLoopBlock) ExecuteFlat(wr io.Writer, data []interface{}, dataI *int) error {
+	if *dataI >= len(data) {
+		return errors.New("not enough arguments")
+	}
+	value := reflect.ValueOf(data[*dataI])
+
+	var doEls bool
+	switch value.Kind() {
+	case reflect.Int:
+		doEls = value.Int() == 0
+		for i := 0; i < int(value.Int()); i++ {
+			err := te.template.execute(wr, data, data[*dataI], i) // pass data[dataI] as parent data instead of nil because it may be hard to work with root data as []interface{}
+			if err != nil {
+				return err
+			}
+		}
+	case reflect.Slice:
+		doEls = value.Len() == 0
+		for i := 0; i < value.Len(); i++ {
+			err := te.template.execute(wr, data, data[*dataI], value.Index(i).Interface()) // pass data[dataI] as parent data instead of nil because it may be hard to work with root data as []interface{}
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return errors.New("in loop block directive alowed only int and slice types, but got " + value.Kind().String() + " (" + strconvh.FormatInt(*dataI) + ")")
+	}
+	*dataI++ // still for loop condition
+
+	if te.els != nil {
+		if doEls {
+			return te.els.executeFlat(wr, data, dataI)
+		}
+		*dataI += te.els.NumArgs()
+	}
+
+	return nil
+}

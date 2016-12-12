@@ -5,8 +5,10 @@ import (
 	"reflect"
 )
 
+type addrGetter struct{}
+
 // error is always nil, it is just for interface
-func GetAddr(a reflect.Value) (reflect.Value, error) {
+func (addrGetter) Apply(a reflect.Value) (reflect.Value, error) {
 	if a.CanAddr() {
 		return a.Addr(), nil
 	}
@@ -16,7 +18,9 @@ func GetAddr(a reflect.Value) (reflect.Value, error) {
 	return vp, nil
 }
 
-func Dereference(a reflect.Value) (reflect.Value, error) {
+type dereferencer struct{}
+
+func (dereferencer) Apply(a reflect.Value) (reflect.Value, error) {
 	if kind := a.Kind(); kind != reflect.Ptr {
 		return reflect.Value{}, errors.New("unable to dereference " + kind.String())
 	}
