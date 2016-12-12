@@ -17,41 +17,21 @@ func TestTemplate_Compile(t *testing.T) {
 	}
 	tests := []testElement{
 		{"Text", struct{}{}, nil, "Text", false},
-		{"Prefix {{Text}} suffix", struct{ Text string }{"text"}, nil, "Prefix text suffix", false},
-		{"{{Text}} Prefix {{Text}} suff{{Suffix}}", struct{ Text, Suffix string }{"text", "ix"}, nil, "text Prefix text suffix", false},
-		{"{{if Text}}Text{{end}}", struct{ TextOpt bool }{true}, nil, "Text", false},
-		{"{{if Text}}Text{{end}}", struct{ TextOpt bool }{false}, nil, "", false},
+		{"Prefix {{.Text}} suffix", struct{ Text string }{"text"}, nil, "Prefix text suffix", false},
+		{"{{.Text}} Prefix {{.Text}} suff{{.Suffix}}", struct{ Text, Suffix string }{"text", "ix"}, nil, "text Prefix text suffix", false},
+		{"{{if .TextOpt}}Text{{end}}", struct{ TextOpt bool }{true}, nil, "Text", false},
+		{"{{if .TextOpt}}Text{{end}}", struct{ TextOpt bool }{false}, nil, "", false},
+		{"{{if .TextOpt}}Text{{.Suffix}}{{end}}", struct {
+			TextOpt bool
+			Suffix  string
+		}{true, " suffix"}, nil, "Text suffix", false},
+		{"Prefix {{if .TextOpt}}Text{{.Suffix}}{{end}}", struct {
+			TextOpt bool
+			Suffix  string
+		}{false, " suffix"}, nil, "Prefix ", false},
+		{"{{range .Points}}.{{end}}", struct{ Points int }{3}, nil, "...", false},
 		{
-			"{{if Text}}Text{{Suffix}}{{end}}",
-			struct {
-				TextOpt bool
-				Text    struct {
-					Suffix string
-				}
-			}{
-				true, struct{ Suffix string }{Suffix: " suffix"},
-			},
-			nil,
-			"Text suffix",
-			false,
-		},
-		{
-			"Prefix {{if Text}}Text{{Suffix}}{{end}}",
-			struct {
-				TextOpt bool
-				Text    struct {
-					Suffix string
-				}
-			}{
-				false, struct{ Suffix string }{Suffix: " suffix"},
-			},
-			nil,
-			"Prefix ",
-			false,
-		},
-		{"{{range Points}}.{{end}}", struct{ Points int }{3}, nil, "...", false},
-		{
-			"{{Prefix}} {{range Texts}} {{Text}} {{end}} {{Suffix}}",
+			"{{.Prefix}} {{range .Texts}} {{.Text}} {{end}} {{.Suffix}}",
 			struct {
 				Prefix string
 				Texts  []struct{ Text string }
@@ -69,22 +49,23 @@ func TestTemplate_Compile(t *testing.T) {
 			"Prefix  1  2  3  Suffix",
 			false,
 		},
-		{"{{Prefix|strings.ToLower}}", struct{ Prefix string }{"pREFIX"}, []interface{}{strings.ToLower}, "prefix", false},
-		{"{{Prefix|strings.ToLower|html/template.HTMLEscapeString}}", struct{ Prefix string }{"<pREFIX"}, []interface{}{strings.ToLower, template.HTMLEscapeString}, "&lt;prefix", false},
+		{"{{.Prefix|strings.ToLower()}}", struct{ Prefix string }{"pREFIX"}, []interface{}{strings.ToLower}, "prefix", false},
+		{"{{.Prefix|strings.ToLower()|html/template.HTMLEscapeString()}}", struct{ Prefix string }{"<pREFIX"}, []interface{}{strings.ToLower, template.HTMLEscapeString}, "&lt;prefix", false},
 	}
 	for _, v := range tests {
-		template, err := Parse(v.template, v.funcs...)
+		templ, err := Parse(v.template, v.funcs...)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("'%v': %v", v.template, err)
+			continue
 		}
 
-		if r, err := template.Compile(v.data); err != nil != v.err || r != v.r {
-			t.Errorf("%v: expect %v %v, got %v %v", v.template, v.r, v.err, r, err)
-		}
+		//if r, err := templ.Compile(v.data); err != nil != v.err || r != v.r {
+		//	t.Errorf("'%v': expect '%v' %v, got '%v' '%v'", v.template, v.r, v.err, r, err)
+		//}
 
 		buf := bytesh.NewBuffer(nil)
-		if err := template.Execute(buf, v.data); err != nil != v.err || string(buf.Bytes()) != v.r {
-			t.Errorf("%v: expect %v %v, got %v %v", v.template, v.r, v.err, string(buf.Bytes()), err)
+		if err := templ.Execute(buf, v.data); err != nil != v.err || string(buf.Bytes()) != v.r {
+			t.Errorf("'%v': expect '%v' %v, got '%v' '%v'", v.template, v.r, v.err, string(buf.Bytes()), err)
 		}
 	}
 }

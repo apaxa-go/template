@@ -59,8 +59,8 @@ func Execute(w io.Writer, strings map[string]string, order []string, options map
 			argNum++
 		}
 	}
-	if argNum!=len(arguments){
-		return errors.New("Too many arguments: required "+strconvh.FormatInt(argNum)+", but given "+strconvh.FormatInt(len(arguments)))
+	if argNum != len(arguments) {
+		return errors.New("Too many arguments: required " + strconvh.FormatInt(argNum) + ", but given " + strconvh.FormatInt(len(arguments)))
 	}
 	return nil
 }

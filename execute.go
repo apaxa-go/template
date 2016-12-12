@@ -1,12 +1,10 @@
 package template
 
 import (
-	"errors"
-	"github.com/apaxa-go/helper/strconvh"
 	"io"
-	"reflect"
 )
 
+/*
 func (t *Template) CompileSimple() (string, error) {
 	var r string
 	for _, te := range t.tes {
@@ -44,159 +42,95 @@ func (t *Template) ExecuteSimple(wr io.Writer) error {
 	}
 	return nil
 }
+*/
+
+/*
 func (t *Template) Compile(data interface{}) (string, error) {
-	value := reflect.ValueOf(data)
-	if value.Kind() != reflect.Struct {
-		return "", errors.New("data should be if type struct")
-	}
+	//value := reflect.ValueOf(data)
+	//if value.Kind() != reflect.Struct {
+	//	return "", errors.New("data should be if type struct")
+	//}
 	var r string
 	for _, te := range t.tes {
-		switch te := te.(type) {
-		case teString:
-			r += string(te)
-		case tePlaceholder:
-			var subValue reflect.Value
-			if te.method{
-				var err error
-				subValue,err=callFunctionSingleResult(value.MethodByName(te.name),nil)
-				if err!=nil{
-					return "",err
-				}
-			}else{
-				subValue = value.FieldByName(te.name)
-			}
-			if !subValue.IsValid() {
-				return "", errors.New("no required field/method " + te.name)
-			}
-			str, err := te.Compile(subValue.Interface())
-			if err != nil {
-				return "", err
-			}
-			r += str
-		case teOptionalBlock: // Must have optField (bool), may have field (struct)
-			switch subValue := value.FieldByName(te.optField()); subValue.Kind() {
-			case reflect.Bool:
-				if subValue.Bool() {
-					subValue = value.FieldByName(te.name)
-					var str string
-					var err error
-					if !subValue.IsValid() { // Call sub template without arguments
-						str, err = te.template.CompileSimple()
-					} else {
-						str, err = te.template.Compile(subValue.Interface())
-					}
-					if err != nil {
-						return "", err
-					}
-					r += str
-				}
-			default:
-				return "", errors.New("no required field (bool) " + string(te.optField()))
-			}
-		case teLoopBlock: // Must have field ([]struct or int)
-			switch subValue := value.FieldByName(te.name); subValue.Kind() {
-			case reflect.Slice:
-				for i := 0; i < subValue.Len(); i++ {
-					str, err := te.template.Compile(subValue.Index(i).Interface())
-					if err != nil {
-						return "", err
-					}
-					r += str
-				}
-			case reflect.Int:
-				for i := 0; i < int(subValue.Int()); i++ {
-					str, err := te.template.CompileSimple()
-					if err != nil {
-						return "", err
-					}
-					r += str
-				}
-			default:
-				return "", errors.New("no required slice field (struct ot int) " + te.name)
-			}
-		default:
-			return "", errors.New("unexpected type of template element")
+		//log.Println(te)
+		str, err := te.Compile(data)
+		if err != nil {
+			return "", err
 		}
+		r += str
+		//switch te := te.(type) {
+		//case teString:
+		//	r += string(te)
+		//case tePlaceholder:
+		//	str,err:=te.CompileString(data)
+		//	if err!=nil{
+		//		return "",err
+		//	}
+		//	r+=str
+		//case teOptionalBlock: // Must have optField (bool), may have field (struct)
+		//	switch subValue := value.FieldByName(te.optField()); subValue.Kind() {
+		//	case reflect.Bool:
+		//		if subValue.Bool() {
+		//			subValue = value.FieldByName(te.name)
+		//			var str string
+		//			var err error
+		//			if !subValue.IsValid() { // Call sub template without arguments
+		//				str, err = te.template.CompileSimple()
+		//			} else {
+		//				str, err = te.template.Compile(subValue.Interface())
+		//			}
+		//			if err != nil {
+		//				return "", err
+		//			}
+		//			r += str
+		//		}
+		//	default:
+		//		return "", errors.New("no required field (bool) " + string(te.optField()))
+		//	}
+		//case teLoopBlock: // Must have field ([]struct or int)
+		//	switch subValue := value.FieldByName(te.name); subValue.Kind() {
+		//	case reflect.Slice:
+		//		for i := 0; i < subValue.Len(); i++ {
+		//			str, err := te.template.Compile(subValue.Index(i).Interface())
+		//			if err != nil {
+		//				return "", err
+		//			}
+		//			r += str
+		//		}
+		//	case reflect.Int:
+		//		for i := 0; i < int(subValue.Int()); i++ {
+		//			str, err := te.template.CompileSimple()
+		//			if err != nil {
+		//				return "", err
+		//			}
+		//			r += str
+		//		}
+		//	default:
+		//		return "", errors.New("no required slice field (struct ot int) " + te.name)
+		//	}
+		//default:
+		//	return "", errors.New("unexpected type of template element")
+		//}
 	}
 	return r, nil
 }
+*/
 
-func (t *Template) Execute(wr io.Writer, data interface{}) error {
-	value := reflect.ValueOf(data)
-	if value.Kind() != reflect.Struct {
-		return errors.New("data should be if type struct")
-	}
+func (t *Template) execute(wr io.Writer, topData, parentData, data interface{}) error {
 	for _, te := range t.tes {
-		switch te := te.(type) {
-		case teString:
-			if _, err := wr.Write([]byte(te)); err != nil {
-				return err
-			}
-		case tePlaceholder:
-			var subValue reflect.Value
-			if te.method{
-				var err error
-				subValue,err=callFunctionSingleResult(value.MethodByName(te.name),nil)
-				if err!=nil{
-					return err
-				}
-			}else{
-				subValue = value.FieldByName(te.name)
-			}
-			if !subValue.IsValid() {
-				return errors.New("no required field/method " + te.name)
-			}
-			str, err := te.Compile(subValue.Interface())
-			if err != nil {
-				return  err
-			}
-			if _, err := wr.Write([]byte(str)); err != nil {
-				return err
-			}
-		case teOptionalBlock: // Must have optField (bool), may have field (struct)
-			switch subValue := value.FieldByName(te.optField()); subValue.Kind() {
-			case reflect.Bool:
-				if subValue.Bool() {
-					subValue = value.FieldByName(te.name)
-					var err error
-					if !subValue.IsValid() { // Call sub template without arguments
-						err = te.template.ExecuteSimple(wr)
-					} else {
-						err = te.template.Execute(wr, subValue.Interface())
-					}
-					if err != nil {
-						return err
-					}
-				}
-			default:
-				return errors.New("no required field (bool) " + string(te.optField()))
-			}
-		case teLoopBlock: // Must have field ([]struct or int)
-			switch subValue := value.FieldByName(te.name); subValue.Kind() {
-			case reflect.Slice:
-				for i := 0; i < subValue.Len(); i++ {
-					err := te.template.Execute(wr, subValue.Index(i).Interface())
-					if err != nil {
-						return nil
-					}
-				}
-			case reflect.Int:
-				for i := 0; i < int(subValue.Int()); i++ {
-					err := te.template.ExecuteSimple(wr)
-					if err != nil {
-						return nil
-					}
-				}
-			default:
-				return errors.New("no required slice field (struct ot int) " + te.name)
-			}
-		default:
-			return errors.New("unexpected type of template element")
+		err := te.Execute(wr, topData, parentData, data)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
+func (t *Template) Execute(wr io.Writer, data interface{}) error {
+	return t.execute(wr, data, nil, data)
+}
+
+/*
 // 'if' te are inlined, 'loop' te may be inlined (if depends only on number of iterations, so int used; in other words if its template require no argument) or called as usual (if slice is used; in other words if its template require some arguments).
 // Because of possibly compilation number of arguments must be constant for specific template.
 // So for 'if' blocks arguments should be passed even if block disabled.
@@ -347,3 +281,4 @@ func (t *Template) ExecuteFlat(wr io.Writer, data ...interface{}) error {
 	}
 	return nil
 }
+*/
