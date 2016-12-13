@@ -128,6 +128,9 @@ func (te tePlaceholder) CompileInterface(topData, parentData, data interface{}) 
 			return nil, err
 		}
 	}
+	if !value.IsValid(){
+		return nil,nil
+	}
 	return value.Interface(), nil
 }
 

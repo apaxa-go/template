@@ -5,18 +5,38 @@ import (
 	"reflect"
 )
 
-var buildinFuncs map[string]interface{}=map[string]interface{}{
-	"len":func(a interface{})int{return reflect.ValueOf(a).Len()},
-	"cap":func(a interface{})int{return reflect.ValueOf(a).Cap()},
-	"not":func(a bool)bool {return !a},
-	"isNil":func(a interface{})bool{return a==nil},
-	"isZero":func(a int)bool{return a==0},
-	"isPositive":func(a int)bool{return a>0},
-	"isNegative":func(a int)bool{return a<0},
-	"isNotNegative":func(a int)bool{return a>=0},
-	"isNotPositive":func(a int)bool{return a<=0},
-	"intToString":func(a interface{})string{
-		switch v:=a.(type) {
+var buildinFuncs map[string]interface{} = map[string]interface{}{
+	"len": func(a interface{}) int { return reflect.ValueOf(a).Len() },
+	"cap": func(a interface{}) int { return reflect.ValueOf(a).Cap() },
+	"not": func(a bool) bool { return !a },
+	"isNil": func(a interface{}) bool {
+		if a == nil {
+			return true
+		}
+		switch v := reflect.ValueOf(a); v.Kind() {
+		case reflect.Chan:
+			fallthrough
+		case reflect.Func:
+			fallthrough
+		case reflect.Map:
+			fallthrough
+		case reflect.Ptr:
+			fallthrough
+		case reflect.Interface:
+			fallthrough
+		case reflect.Slice:
+			return v.IsNil()
+		default:
+			return false
+		}
+	},
+	"isZero":        func(a int) bool { return a == 0 },
+	"isPositive":    func(a int) bool { return a > 0 },
+	"isNegative":    func(a int) bool { return a < 0 },
+	"isNotNegative": func(a int) bool { return a >= 0 },
+	"isNotPositive": func(a int) bool { return a <= 0 },
+	"intToString": func(a interface{}) string {
+		switch v := a.(type) {
 		case int:
 			return strconvh.FormatInt(v)
 		case int8:
@@ -28,11 +48,11 @@ var buildinFuncs map[string]interface{}=map[string]interface{}{
 		case int64:
 			return strconvh.FormatInt64(v)
 		default:
-			panic(reflect.TypeOf(a).String()+" is not signed integer")
+			panic(reflect.TypeOf(a).String() + " is not signed integer")
 		}
 	},
-	"uintToString":func(a interface{})string{
-		switch v:=a.(type) {
+	"uintToString": func(a interface{}) string {
+		switch v := a.(type) {
 		case uint:
 			return strconvh.FormatUint(v)
 		case uint8:
@@ -44,16 +64,21 @@ var buildinFuncs map[string]interface{}=map[string]interface{}{
 		case uint64:
 			return strconvh.FormatUint64(v)
 		default:
-			panic(reflect.TypeOf(a).String()+" is not unsigned integer")
+			panic(reflect.TypeOf(a).String() + " is not unsigned integer")
 		}
+	},
+	"htmlChecked": func(a bool)string{
+		if a{
+			return " checked=\"\""
+		}
+		return ""
 	},
 }
 
-func NewFuncs()map[string]interface{}{
-	f:=make(map[string]interface{})
-	for k,v:=range buildinFuncs{
-		f[k]=v
+func NewFuncs() map[string]interface{} {
+	f := make(map[string]interface{})
+	for k, v := range buildinFuncs {
+		f[k] = v
 	}
 	return f
 }
-
