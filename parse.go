@@ -38,6 +38,13 @@ func parse(s *string, funcs map[string]interface{}) (t *Template, err error) {
 				return
 			}
 			t.tes = append(t.tes, b)
+		case strings.HasPrefix(directive, subBlockPrefix):
+			var b teSubBlock
+			b, err = parseTESub(s, funcs)
+			if err != nil {
+				return
+			}
+			t.tes = append(t.tes, b)
 		case strings.HasPrefix(directive, optionalElseIfBlockPrefix):
 			fallthrough
 		case strings.HasPrefix(directive, optionalElseBlockPrefix):
@@ -59,7 +66,7 @@ func parse(s *string, funcs map[string]interface{}) (t *Template, err error) {
 }
 
 func Parse(s string, funcs ...interface{}) (*Template, error) {
-	funcsMap := make(map[string]interface{})
+	funcsMap := NewFuncs()
 	for _, f := range funcs {
 		name := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 		funcsMap[name] = f

@@ -9,6 +9,7 @@ const (
 	optionalElseIfBlockPrefix = "else if "
 	optionalElseBlockPrefix   = "else"
 	loopBlockPrefix           = "range "
+	subBlockPrefix                  = "sub "
 	endOfBlock                = "end"
 	pipe                      = "|"
 )

@@ -40,6 +40,8 @@ func parsePlaceholder(s string, funcs map[string]interface{}) (p tePlaceholder, 
 	const (
 		dot    = "."
 		invoke = "()"
+		indexLeft="["
+		indexRight="]"
 	)
 
 	strs := strings.Split(s, pipe)
@@ -93,6 +95,14 @@ func parsePlaceholder(s string, funcs map[string]interface{}) (p tePlaceholder, 
 				return
 			}
 			p.funcs = append(p.funcs, FuncSimple{f})
+		case strings.HasPrefix(str, indexLeft) && strings.HasSuffix(str,indexRight):	// Access by index
+			iStr:=str[len(indexLeft):len(str)-len(indexRight)]
+			var i int
+			i,err = strconvh.ParseInt(iStr)
+			if err!=nil{
+				return
+			}
+			p.funcs=append(p.funcs, Index(i))
 		default:
 			err = errors.New("unknown element in placeholder: '" + str + "'")
 			return

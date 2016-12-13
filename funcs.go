@@ -3,6 +3,7 @@ package template
 import (
 	"errors"
 	"reflect"
+	"log"
 )
 
 // TODO may be move some of it to other packages?
@@ -52,6 +53,7 @@ type FuncMethod string // Handle method applied to variable (no in arguments, 1 
 func (f FuncMethod) Apply(a reflect.Value) (reflect.Value, error) { // Apply method "FuncMethod" to 'a' with no arguments and return result and optional error
 	fValue := a.MethodByName(string(f))
 	if !fValue.IsValid() {
+		log.Printf("%#v\n%v\n\n",a.Interface(),a.Kind().String())
 		return reflect.Value{}, errors.New("unable to call method '" + string(f) + "': no such method on " + a.Type().String())
 	}
 
