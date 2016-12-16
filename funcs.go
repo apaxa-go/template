@@ -50,17 +50,36 @@ func (f FuncSimple) Apply(a reflect.Value) (reflect.Value, error) { // Pass 'a' 
 type FuncMethod string // Handle method applied to variable (no in arguments, 1 out argument)
 
 func (f FuncMethod) Apply(a reflect.Value) (reflect.Value, error) { // Apply method "FuncMethod" to 'a' with no arguments and return result and optional error
+	// First try to call method directly
 	fValue := a.MethodByName(string(f))
-	if !fValue.IsValid() {
-		return reflect.Value{}, errors.New("unable to call method '" + string(f) + "': no such method on " + a.Type().String())
+	if fValue.IsValid() {
+		return callFunctionSingleResult(fValue, nil)
 	}
 
-	return callFunctionSingleResult(fValue, nil)
+	origType:=a.Type().String()
+	// Second try to call method on value or on pointer
+	if a.Kind()==reflect.Ptr{
+		a=a.Elem()
+	}else{
+		a,_=addrGetter.Apply(struct {}{},a)
+	}
+	fValue = a.MethodByName(string(f))
+	if fValue.IsValid() {
+		return callFunctionSingleResult(fValue, nil)
+	}
+
+	return reflect.Value{}, errors.New("unable to call method '" + string(f) + "': no such method on " + origType)
 }
 
 type FuncGetter string // Handle field name to extract
 
 func (f FuncGetter) Apply(a reflect.Value) (reflect.Value, error) {
+	// Dereference a if it is a pointer
+	if a.Kind()==reflect.Ptr{
+		a=a.Elem()
+	}
+
+	//
 	if a.Kind() != reflect.Struct {
 		return reflect.Value{}, errors.New("unable to get field '" + string(f) + "' from " + a.Kind().String())
 	}

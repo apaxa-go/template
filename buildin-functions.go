@@ -73,6 +73,12 @@ var buildinFuncs map[string]interface{} = map[string]interface{}{
 		}
 		return ""
 	},
+	"htmlSelected": func(a bool)string{
+		if a{
+			return " selected"
+		}
+		return ""
+	},
 }
 
 func NewFuncs() map[string]interface{} {

@@ -6,7 +6,7 @@ import (
 )
 
 type teSubBlock struct {
-	arg      tePlaceholder
+	args      placeholders
 	template *Template
 }
 
@@ -17,7 +17,7 @@ func parseTESub(s *string, funcs map[string]interface{}) (b teSubBlock, err erro
 	directive, _ := extractDirective(s)
 	directive = directive[len(subBlockPrefix):] // Only placeholder definition
 
-	b.arg, err = parsePlaceholder(directive, funcs)
+	b.args, err = parsePlaceholders(directive, funcs)
 	if err != nil {
 		return
 	}
@@ -40,31 +40,16 @@ func parseTESub(s *string, funcs map[string]interface{}) (b teSubBlock, err erro
 	return
 }
 
-func (te teSubBlock) Execute(wr io.Writer, topData, parentData, data interface{}) error {
-	d,err:=te.arg.CompileInterface(topData,parentData,data)
-	if err!=nil{
-		return err
-	}
-
-	err=te.template.execute(wr, topData, data, d)
-	if err!=nil{
-		return err
-	}
-
-	return nil
-}
-
-func (te teSubBlock) ExecuteFlat(wr io.Writer, data []interface{}, dataI *int) error {
-	if *dataI >= len(data) {
-		return errors.New("not enough arguments")
-	}
-
-	err := te.template.execute(wr, data, nil,data[*dataI])
+func (te teSubBlock) Execute(wr io.Writer, data []interface{}) error {
+	d, err := te.args.CompileInterfaces(data)
 	if err != nil {
 		return err
 	}
 
-	*dataI++
+	err = te.template.execute(wr, d)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

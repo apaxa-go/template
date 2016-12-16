@@ -6,30 +6,18 @@ import (
 	"io"
 	"reflect"
 	"strings"
-
-
 )
 
 type Func interface {
 	Apply(reflect.Value) (reflect.Value, error)
 }
 
-type dataLevel int
-
-const (
-	currentDataLevel dataLevel = iota
-	parentDataLevel            = iota
-	topDataLevel               = iota
-)
-
 type tePlaceholder struct {
-	dataLevel dataLevel
-	funcs     []Func
+	argNum int
+	funcs  []Func
 }
 
-func (te tePlaceholder) NumArgs() int {
-	return 1
-}
+type placeholders []tePlaceholder
 
 // * => get value of parent address (dereference parent value).
 // & => get address of parent value.
@@ -38,27 +26,25 @@ func (te tePlaceholder) NumArgs() int {
 // Function() => get result of execution function Function with passing parent value as single argument.
 func parsePlaceholder(s string, funcs map[string]interface{}) (p tePlaceholder, err error) {
 	const (
-		dot    = "."
-		invoke = "()"
-		indexLeft="["
-		indexRight="]"
+		dot        = "."
+		invoke     = "()"
+		indexLeft  = "["
+		indexRight = "]"
 	)
 
-	strs := strings.Split(s, pipe)
-	skipFirst := true
-	switch strs[0] {
-	case "":
-		fallthrough
-	case ".":
-		p.dataLevel = currentDataLevel
-	case "..":
-		p.dataLevel = parentDataLevel
-	case "...":
-		p.dataLevel = topDataLevel
-	default:
-		p.dataLevel = currentDataLevel
-		skipFirst = false
+	if s==""{
+		return
 	}
+
+	strs := strings.Split(s, pipe)
+	skipFirst := false
+	if len(strs[0])>0 && strs[0][0] == 'a' {
+		if i, err := strconvh.ParseInt(strs[0][1:]); err == nil {
+			p.argNum = i
+			skipFirst = true
+		}
+	}
+
 	if skipFirst {
 		strs = strs[1:]
 	}
@@ -95,14 +81,14 @@ func parsePlaceholder(s string, funcs map[string]interface{}) (p tePlaceholder, 
 				return
 			}
 			p.funcs = append(p.funcs, FuncSimple{f})
-		case strings.HasPrefix(str, indexLeft) && strings.HasSuffix(str,indexRight):	// Access by index
-			iStr:=str[len(indexLeft):len(str)-len(indexRight)]
+		case strings.HasPrefix(str, indexLeft) && strings.HasSuffix(str, indexRight): // Access by index
+			iStr := str[len(indexLeft) : len(str)-len(indexRight)]
 			var i int
-			i,err = strconvh.ParseInt(iStr)
-			if err!=nil{
+			i, err = strconvh.ParseInt(iStr)
+			if err != nil {
 				return
 			}
-			p.funcs=append(p.funcs, Index(i))
+			p.funcs = append(p.funcs, Index(i))
 		default:
 			err = errors.New("unknown element in placeholder: '" + str + "'")
 			return
@@ -111,16 +97,31 @@ func parsePlaceholder(s string, funcs map[string]interface{}) (p tePlaceholder, 
 	return
 }
 
-func (te tePlaceholder) CompileInterface(topData, parentData, data interface{}) (interface{}, error) {
-	var value reflect.Value
-	switch te.dataLevel {
-	case currentDataLevel:
-		value = reflect.ValueOf(data)
-	case parentDataLevel:
-		value = reflect.ValueOf(parentData)
-	case topDataLevel:
-		value = reflect.ValueOf(topData)
+func parsePlaceholders(s string, funcs map[string]interface{}) (p placeholders, err error) {
+	args := strings.Split(s, ",")
+	p = make([]tePlaceholder, len(args))
+	for i, arg := range args {
+		p[i], err = parsePlaceholder(arg, funcs)
+		if err != nil {
+			return
+		}
 	}
+	return
+}
+
+func (ps placeholders) CompileInterfaces(data []interface{}) (r []interface{}, err error) {
+	r = make([]interface{}, len(ps))
+	for i, p := range ps {
+		r[i], err = p.CompileInterface(data)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (te tePlaceholder) CompileInterface(data []interface{}) (interface{}, error) {
+	value := reflect.ValueOf(data[te.argNum])
 	for _, f := range te.funcs {
 		var err error
 		value, err = f.Apply(value)
@@ -128,14 +129,14 @@ func (te tePlaceholder) CompileInterface(topData, parentData, data interface{}) 
 			return nil, err
 		}
 	}
-	if !value.IsValid(){
-		return nil,nil
+	if !value.IsValid() {
+		return nil, nil
 	}
 	return value.Interface(), nil
 }
 
-func (te tePlaceholder) Compile(topData, parentData, data interface{}) (string, error) {
-	v, err := te.CompileInterface(topData, parentData, data)
+func (te tePlaceholder) Compile(data []interface{}) (string, error) {
+	v, err := te.CompileInterface(data)
 	if err != nil {
 		return "", err
 	}
@@ -143,12 +144,12 @@ func (te tePlaceholder) Compile(topData, parentData, data interface{}) (string, 
 	case string:
 		return v2, nil
 	default:
-		return "", errors.New("unable to compile placeholder: result not a string")
+		return "", errors.New("unable to compile placeholder: result is "+reflect.TypeOf(v).String()+", not a string")
 	}
 }
 
-func (te tePlaceholder) CompileBool(topData, parentData, data interface{}) (bool, error) {
-	v, err := te.CompileInterface(topData, parentData, data)
+func (te tePlaceholder) CompileBool(data []interface{}) (bool, error) {
+	v, err := te.CompileInterface(data)
 	if err != nil {
 		return false, err
 	}
@@ -156,12 +157,12 @@ func (te tePlaceholder) CompileBool(topData, parentData, data interface{}) (bool
 	case bool:
 		return v2, nil
 	default:
-		return false, errors.New("unable to compile placeholder: result not a bool")
+		return false, errors.New("unable to compile placeholder: result is "+reflect.TypeOf(v).String()+", not a bool")
 	}
 }
 
-func (te tePlaceholder) CompileInt(topData, parentData, data interface{}) (int, error) {
-	v, err := te.CompileInterface(topData, parentData, data)
+func (te tePlaceholder) CompileInt(data []interface{}) (int, error) {
+	v, err := te.CompileInterface(data)
 	if err != nil {
 		return 0, err
 	}
@@ -169,28 +170,15 @@ func (te tePlaceholder) CompileInt(topData, parentData, data interface{}) (int, 
 	case int:
 		return v2, nil
 	default:
-		return 0, errors.New("unable to compile placeholder: result not an int")
+		return 0, errors.New("unable to compile placeholder: result is "+reflect.TypeOf(v).String()+", not an int")
 	}
 }
 
-func (te tePlaceholder) Execute(wr io.Writer, topData, parentData, data interface{}) error {
-	str, err := te.Compile(topData, parentData, data)
+func (te tePlaceholder) Execute(wr io.Writer, data []interface{}) error {
+	str, err := te.Compile(data)
 	if err != nil {
 		return err
 	}
 	_, err = wr.Write([]byte(str))
-	return err
-}
-
-func (te tePlaceholder) ExecuteFlat(wr io.Writer, data []interface{}, dataI *int) error {
-	if *dataI >= len(data) {
-		return errors.New("not enough arguments")
-	}
-	str, ok := data[*dataI].(string)
-	*dataI++
-	if !ok {
-		return errors.New("unable to compile placeholder: result not a string (" + strconvh.FormatInt(*dataI) + ")")
-	}
-	_, err := wr.Write([]byte(str))
 	return err
 }
